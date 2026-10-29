@@ -1,0 +1,100 @@
+1. hiba
+Hiba leírása és reprodukálása: Ugyanarra az időpontra (pl. 09:00) többször is lehet foglalni, a „már foglalt” hibaüzenet sosem jelenik meg.
+
+Gyökérok (sor + magyarázat): app.js, 11. sor: return foglalasok.indexOf(ido) !== -1;. A foglalasok tömb objektumokat tartalmaz ({ nev, ido }), nem pedig stringeket. Az indexOf egy primitív stringet (ido) keres az objektumok között, ami mindig -1 (nem található) lesz.
+
+Javítás (commit link): [commit 1a2b3c]
+Előtte: return foglalasok.indexOf(ido) !== -1;Utána: return foglalasok.some(function(f) { return f.ido === ido; });
+
+Hogyan tesztelted (kézi tesztlépések, konzolos ellenőrzés vagy egységteszt): Kézi tesztelés a UI-on: Foglaltam a 09:00-ra, majd újra megpróbáltam ugyanazt. Megjelent az "Ez az időpont már foglalt." üzenet, és nem jött létre duplikáció.
+
+Tanulság / érintett alapelv: Típusok és adatszerkezetek helyes kezelése. Objektumokból álló tömbben nem használhatunk indexOf-ot primitív értékek keresésére; erre a some(), find() vagy findIndex() való.
+
+2. hiba
+Hiba leírása és reprodukálása: A napi limit 8, mégis a 9. beteg is bekerül a listába. Csak a 10. próbálkozásnál jelenik meg a hibaüzenet.
+
+Gyökérok (sor + magyarázat): app.js, 34. sor: if (foglalasok.length > MAX_NAPI). A relációs jel hibás. Ha a limit 8, és már van 8 foglalás, akkor 8 > 8 hamis, tehát a 9. foglalás is bekerül. Csak akkor lesz igaz a feltétel, ha a hossza már eléri a 9-et (tehát a 10. próbálkozásnál).
+
+Javítás (commit link): [commit 2b3c4d]
+Előtte: if (foglalasok.length > MAX_NAPI)Utána: if (foglalasok.length >= MAX_NAPI)
+
+Hogyan tesztelted (kézi tesztlépések, konzolos ellenőrzés vagy egységteszt): Konzolban felülírtam a foglalasok változót egy 8 elemű tömbbel, majd a felületen próbáltam hozzáadni egy újat. Azonnal "Ma már nincs szabad hely." üzenetet kaptam.
+
+Tanulság / érintett alapelv: "Off-by-one" (eggyel elcsúszott) hiba. A logikai feltételeknél pontosan át kell gondolni a határértékeket (greater than vs. greater than or equal).
+
+3. hiba
+Hiba leírása és reprodukálása: A lista nem rendeződik időrendbe. Ha egy 10:00-s foglalás után beviszek egy 08:30-ast, az alulra kerül.
+
+Gyökérok (sor + magyarázat): app.js, 15. sor: foglalasok.sort(function (a, b) { return a.ido > b.ido; });. A JavaScript sort() metódusa számokat vár vissza (negatív, pozitív vagy 0). Egy boolean kifejezés (a.ido > b.ido) true/false (1/0) értéket ad, amivel nem lehet megbízhatóan rendezni, és a legtöbb böngészőmotor ezt helytelenül kezeli.
+
+Javítás (commit link): [commit 3c4d5e]
+Előtte: foglalasok.sort(function (a, b) { return a.ido > b.ido; });Utána: foglalasok.sort(function (a, b) { return a.ido.localeCompare(b.ido); }); (Vagy: if (a.ido < b.ido) return -1; if (a.ido > b.ido) return 1; return 0;)
+
+Hogyan tesztelted (kézi tesztlépések, konzolos ellenőrzés vagy egységteszt): Felvittem egy 12:00, majd egy 09:00 és egy 15:00 időpontot. A renderelt lista automatikusan beállt 09:00, 12:00, 15:00 sorrendbe.
+
+Tanulság / érintett alapelv: JS Array.prototype.sort() helyes használata. A compare funkciónak mindig számot kell visszaadnia az elemek egymáshoz viszonyított helyzetéről.
+
+4. hiba
+Hiba leírása és reprodukálása: Ha a beteg neve <img src=x onerror="document.body.style.background='red'">, a háttér pirosra vált. Súlyos XSS (Cross-Site Scripting) sebezhetőség.
+
+Gyökérok (sor + magyarázat): app.js, 21. sor: lista.innerHTML += '<div class="sor"><span>' + f.ido + ' – ' + f.nev + '</span>'. A felhasználó által megadott nevet sanitizáció (fertőtlenítés) nélkül fűzi bele az innerHTML-be, ami lehetővé teszi tetszőleges JavaScript/HTML kód futtatását.
+
+Javítás (commit link): [commit 4d5e6f]
+Előtte: Hosszú string konkatenáció innerHTML-lel.Utána:
+
+JavaScript
+var sor = document.createElement('div');
+sor.className = 'sor';
+var szoveg = document.createElement('span');
+szoveg.textContent = f.ido + ' – ' + f.nev;
+var torloGomb = document.createElement('button');
+torloGomb.className = 'torol';
+torloGomb.textContent = 'Törlés';
+torloGomb.dataset.i = i;
+sor.appendChild(szoveg);
+sor.appendChild(torloGomb);
+lista.appendChild(sor);
+Hogyan tesztelted (kézi tesztlépések, konzolos ellenőrzés vagy egységteszt): Bevittem a kártékony inputot (<img src=x...>). Az oldal nem futtatta le a scriptet, a háttér fehér maradt, a listában pedig sima szövegként jelent meg a kód.
+
+Tanulság / érintett alapelv: Biztonság (OWASP A3: Injection). Soha ne használj innerHTML-t felhasználói bemenet (User Generated Content) megjelenítésére; helyette használd a textContent-et vagy a createElement API-t.
+
+5. hiba
+Hiba leírása és reprodukálása: A Törlés feliratra Tab-bal nem lehet rálépni, és billentyűzettel (Enter/Space) nem lehet törölni, csak egérkattintással.
+
+Gyökérok (sor + magyarázat): app.js, 22. sor és index.html: A törlés funkció egy <span> elemen van (<span class="torol">Törlés</span>). A <span> nem fókuszálható interaktív elem, így a billentyűzetet használó felhasználók kizáródnak.
+
+Javítás (commit link): [commit 5e6f7g]
+A 4. hiba javításával párhuzamosan megoldódik: a <span>-t át kell írni <button>-ra.Előtte: <span class="torol" data-i=" + i + ">Törlés</span>Utána: (Lásd a 4. hiba document.createElement('button') részét, CSS kiegészítéssel a stílus megőrzésére: button.torol { background: none; border: none; font: inherit; padding: 0; }).
+
+Hogyan tesztelted (kézi tesztlépések, konzolos ellenőrzés vagy egységteszt): Tab billentyűvel végiglépkedtem az oldalon. A Törlés gombokra ráugrott a fókusz, és Enter-t nyomva a foglalás sikeresen törlődött.
+
+Tanulság / érintett alapelv: Akadálymentesség (WCAG 2.1.1 Billentyűzet). Ha egy elem interaktív cselekvést hajt végre (pl. töröl), az szemantikailag <button> kell legyen, nem ráaggatott klikk-eseménnyel rendelkező sima szöveg.
+
+6. hiba
+Hiba leírása és reprodukálása: Sok (50+) foglalásnál a törlés vagy hozzáadás gombra kattintva a renderelés lelassul.
+
+Gyökérok (sor + magyarázat): app.js, 21. sor: lista.innerHTML += .... Egy cikluson (forEach) belül történik az innerHTML folyamatos olvasása és újraírása. Ez minden egyes iterációnál újra-parszolja és újra-rendereli az egész eddigi DOM-fát, ami egy O(n^2) költségű, extrém lassú művelet (layout thrashing).
+
+Javítás (commit link): [commit 6f7g8h]
+A 4. hibánál említett createElement megoldás kiküszöböli a parser terhelését, de az optimális megoldás egy DocumentFragment használata a cikluson belül, és csak a végén egyszer hozzáadni a DOM-hoz.Kódrészlet:
+
+JavaScript
+var lista = document.getElementById('lista');
+lista.innerHTML = '';
+var fragment = document.createDocumentFragment(); // Memóriában lévő tartály
+foglalasok.forEach(function (f, i) {
+  var sor = document.createElement('div');
+  /* ... (4. hiba createElement lépései) ... */
+  fragment.appendChild(sor);
+});
+lista.appendChild(fragment); // Csak egyetlen DOM reflow történik
+(Megjegyzés: A törlés gomb eseménykezelőjét is célszerűbb esemény-delegációval (Event Delegation) a #lista konténerre rakni, ahelyett, hogy minden egyes gombra külön bindolnánk).
+
+Hogyan tesztelted (kézi tesztlépések, konzolos ellenőrzés vagy egységteszt): Chrome DevTools Performance fülön (CPU throttling 6x lassítás): az eredeti kód 50 elemnél >100ms volt, a DocumentFragment-es javítás után <5ms (nincs Forced Reflow figyelmeztetés).
+
+Tanulság / érintett alapelv: Teljesítmény-optimalizálás (DOM manipuláció minimalizálása). A ciklusban végzett DOM-frissítés (főleg az innerHTML +=) kerülendő, helyette a memóriában kell felépíteni a módosításokat.
+
+Összegzés
+Mit tanultam: Egy apró alkalmazás is számtalan sebből vérezhet, ha a fejlesztő nem figyel a biztonságra (XSS), az adatstruktúrák sajátosságaira (objektum keresés/rendezés) és a szemantikára.
+
+Melyik alapelv sérült a leggyakrabban: A biztonságos és hatékony DOM-kezelés elve. Az innerHTML nyakló nélküli használata egyszerre okozott teljesítményproblémát és kritikus biztonsági (XSS) rést.

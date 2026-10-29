@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Időpontfoglaló – Recepció</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f6f8f7; color: #1b2421; max-width: 640px; margin: auto; padding: 16px; }
+    .sor { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #d5ddd9; }
+    
+    /* Akadálymentes gomb stílus a törléshez (az eredeti kinézet megőrzésével) */
+    .torol { 
+      color: #a12a1e; 
+      cursor: pointer; 
+      text-decoration: underline; 
+      background: none; 
+      border: none; 
+      font: inherit; 
+      padding: 4px 8px; 
+    }
+    .torol:focus {
+      outline: 2px solid #a12a1e;
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mai időpontok</h1>
+  <form id="f">
+    <label for="nev">Beteg neve</label>
+    <input id="nev" required>
+    
+    <label for="ido">Időpont</label>
+    <input id="ido" type="time" required>
+    
+    <button type="submit">Foglalás</button>
+  </form>
+  
+  <p id="uzenet" aria-live="polite"></p>
+  <div id="lista"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

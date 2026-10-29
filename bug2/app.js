@@ -38,12 +38,13 @@ function render() {
     // Javítás #4: textContent használata innerHTML helyett (XSS sebezhetőség megszüntetése)
     szoveg.textContent = f.ido + ' – ' + f.nev;
 
-    // Javítás #5: span helyett valódi <button> az akadálymentes billentyűzetkezelésért (Tab + Enter)
-    var torloGomb = document.createElement('button');
-    torloGomb.className = 'torol';
-    torloGomb.textContent = 'Törlés';
-    torloGomb.setAttribute('type', 'button');
-    torloGomb.dataset.i = i;
+    // Javítás #5 kiegészítése az oktatói ellenőrzőlista alapján (screen reader kontextus):
+var torloGomb = document.createElement('button');
+torloGomb.className = 'torol';
+torloGomb.textContent = 'Törlés';
+torloGomb.setAttribute('type', 'button');
+torloGomb.setAttribute('aria-label', 'Törlés: ' + f.ido + ' ' + f.nev);
+torloGomb.dataset.i = i;
 
     torloGomb.addEventListener('click', function () {
       foglalasok.splice(i, 1);
